@@ -1,0 +1,17 @@
+<!-- remember, this goes in "./config/" -->
+<config>
+
+   <!-- basic config example -->
+   <ruleSet>
+      <source></source>
+      <titleDuplicateRemove></titleDuplicateRemove>
+      <linkDuplicateRemove></linkDuplicateRemove>
+      <rules>
+         <titleMatch></titleMatch>
+         <titleMatchNot></titleMatchNot>
+         <before></before>
+         <after></after>
+      </rules>
+   </ruleSet>
+
+</config>
