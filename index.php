@@ -2,7 +2,7 @@
 /*******************************************************************************
 rss-filter
 creation: 2014-11-26 08:04 +0000
-  update: 2014-11-28 21:14 +0000
+  update: 2014-11-28 21:25 +0000
 *******************************************************************************/
 
 
@@ -193,7 +193,6 @@ function feedsFetch(&$data) {
    // detect open_basedir
    // we use self download when open_basedir is enabled
    // to ensure we follow redirections
-   ini_set('open_basedir', '.');
    $open_basedir_enabled = ini_get('open_basedir') ? true : false;
 
 
@@ -215,20 +214,8 @@ function feedsFetch(&$data) {
          $data['source'][$hashId] = &$source;
 
 
-         // build curl urls list + open_basedir bypass
+         // build curl urls list
          $url = $source;
-         if($open_basedir_enabled) {
-
-            // create dynamic hash to identify source
-            // this ensures only the script can use itself as proxy
-            $hash = sha1(microtime(true).$url);
-
-            // put target url in file
-            file_put_contents($CFG_DIR_DOWNLOAD.$hash, $url);
-
-            // replace source url with proxy url
-            $url = $CFG_URL_DOWNLOAD.$hash;
-         }
          $urls[$hashId] = $url;
       }
 
@@ -531,34 +518,8 @@ matches   items   url
 
 
 
-/******************************************************************* download */
-// this is a proxy to bypass the curl location follow issue with open_basedir
-// file_get_contents() follows redirections, so we call ourselves via curl
-if($_GET['download']) {
-
-   $hash = $_GET['download'];
-
-   // check id format
-   if(!preg_match('/^[0-9a-z]{40}$/i', $hash)) {
-      exit();
-   }
-
-   $fp = $CFG_DIR_DOWNLOAD.$hash;
-
-   $url = file_get_contents($fp);
-
-   unlink($fp);
-
-   $data = file_get_contents($url);
-
-   exit($data);
-}
-
-
-
-
 /*********************************************************** load config file */
-elseif($_GET['config']) {
+if($_GET['config']) {
 
    $configName = $_GET['config'];
 

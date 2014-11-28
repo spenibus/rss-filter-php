@@ -1,3 +1,6 @@
+2014-11-28 21:25 +0000
+   - removed open_basedir bypass until better solution found
+
 2014-11-28 21:14 +0000
    - made proxy more transparent
 
