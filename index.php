@@ -2,7 +2,7 @@
 /*******************************************************************************
 rss-filter
 creation: 2014-11-26 08:04 +0000
-  update: 2014-11-27 14:55 +0000
+  update: 2014-11-28 10:42 +0000
 *******************************************************************************/
 
 
@@ -188,41 +188,52 @@ function feedsFetch(&$data) {
 
    global $CFG_DIR_DOWNLOAD, $CFG_URL_DOWNLOAD;
 
+
+   // detect open_basedir
+   // we use self download when open_basedir is enabled
+   // to ensure we follow redirections
+   $open_basedir_enabled = ini_get('open_basedir') ? true : false;
+
+
    foreach($data['ruleSet'] as $rid=>&$ruleset) {
       foreach($ruleset['source'] as &$source) {
 
-         // create dynamic hash to identify source
-         $hash = sha1(microtime(true).$source);
+         // open_basedir bypass
+         if($open_basedir_enabled) {
 
-         // proxy url
-         $url = $CFG_URL_DOWNLOAD.$hash;
+            // create dynamic hash to identify source
+            $hash = sha1(microtime(true).$source);
 
-         // put url in file
-         file_put_contents($CFG_DIR_DOWNLOAD.$hash, $source);
+            // put target url in file
+            file_put_contents($CFG_DIR_DOWNLOAD.$hash, $source);
 
-         // update structure
-         $source = array(
-            'baseUrl' => $source,
-            'hash'    => $hash,
-            'url'     => $url,
-         );
+            // replace source url with proxy url
+            $source = $CFG_URL_DOWNLOAD.$hash;
+         }
 
-         // curl url queue, keep reference to config
-         $urls[$hash] = &$source;
+         // curl url list, store reference to source
+         $urls[] = &$source;
       }
    }
 
 
    // curl
    $curl = curl_multi_init();
-   foreach($urls as $hash=>$urlData) {
-      $curlHandle[$hash] = curl_init($urlData['url']);
-      curl_setopt($curlHandle[$hash], CURLOPT_RETURNTRANSFER, true);
-      curl_setopt($curlHandle[$hash], CURLOPT_HEADER, true);
-      curl_setopt($curlHandle[$hash], CURLOPT_TIMEOUT, 20);
-      curl_setopt($curlHandle[$hash], CURLOPT_SSL_VERIFYPEER, false);
-      curl_setopt($curlHandle[$hash], CURLOPT_SSL_VERIFYHOST, false);
-      curl_multi_add_handle($curl, $curlHandle[$hash]);
+   foreach($urls as $id=>$url) {
+
+      $curlHandle[$id] = curl_init($url);
+      curl_setopt($curlHandle[$id], CURLOPT_RETURNTRANSFER, true);
+      curl_setopt($curlHandle[$id], CURLOPT_HEADER, true);
+      curl_setopt($curlHandle[$id], CURLOPT_TIMEOUT, 20);
+      curl_setopt($curlHandle[$id], CURLOPT_SSL_VERIFYPEER, false);
+      curl_setopt($curlHandle[$id], CURLOPT_SSL_VERIFYHOST, false);
+
+      // follow redirections when open_basedir is disabled
+      if(!$open_basedir_enabled) {
+         curl_setopt($curlHandle[$id], CURLOPT_FOLLOWLOCATION, true);
+      }
+
+      curl_multi_add_handle($curl, $curlHandle[$id]);
    }
 
 
@@ -233,7 +244,7 @@ function feedsFetch(&$data) {
    }
 
 
-   foreach($curlHandle as $hash=>$handle) {
+   foreach($curlHandle as $id=>$handle) {
 
       $content = curl_multi_getcontent($handle);
 
@@ -253,7 +264,11 @@ function feedsFetch(&$data) {
       }
       $charset = $charset ? $charset : 'auto';
 
-      $urls[$hash]['raw'] = mb_convert_encoding($content, 'utf-8', $charset);
+      // update structure
+      $urls[$id] = array(
+         'url' => $url,
+         'raw' => mb_convert_encoding($content, 'utf-8', $charset),
+      );
 
       curl_multi_remove_handle($curl, $handle);
    }
@@ -412,7 +427,7 @@ function rssBuild(&$data) {
    $output = '';
 
    foreach($data['output'] as $item) {
-      $output .= $item['raw'];
+      $output .= "\n      ".$item['raw'];
    }
 
 

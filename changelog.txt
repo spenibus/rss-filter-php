@@ -1,2 +1,5 @@
+2014-11-28 10:42 +0000
+   - open_basedir bypass is now applied only when detected
+
 2014-11-27 14:55 +0000
    - initial commit
