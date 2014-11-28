@@ -2,7 +2,7 @@
 /*******************************************************************************
 rss-filter
 creation: 2014-11-26 08:04 +0000
-  update: 2014-11-28 10:42 +0000
+  update: 2014-11-28 20:34 +0000
 *******************************************************************************/
 
 
@@ -96,6 +96,7 @@ function configBuild($fn) {
 
    global $CFG_DIR_CONFIG;
 
+
    libxml_use_internal_errors(true);
 
 
@@ -177,7 +178,7 @@ function configBuild($fn) {
    $tree = $treeMaker($dom, $keywords, $treeMaker);
 
 
-   return $tree;
+   return array('config'=>$tree);
 }
 
 
@@ -195,13 +196,25 @@ function feedsFetch(&$data) {
    $open_basedir_enabled = ini_get('open_basedir') ? true : false;
 
 
-   foreach($data['ruleSet'] as $rid=>&$ruleset) {
-      foreach($ruleset['source'] as &$source) {
+   // queue source urls for curl
+   foreach($data['config']['ruleSet'] as $rid=>&$ruleset) {
+
+      // temp hashmap storage
+      unset($newSourceArray);
+      $newSourceArray = array();
+
+      foreach($ruleset['source'] as $sid=>&$source) {
+
+         // hashmap source
+         $hashId = sha1($source);
+         $newSourceArray[$hashId] = &$source;
+
 
          // open_basedir bypass
          if($open_basedir_enabled) {
 
             // create dynamic hash to identify source
+            // this ensures only the script can use itself as proxy
             $hash = sha1(microtime(true).$source);
 
             // put target url in file
@@ -211,15 +224,19 @@ function feedsFetch(&$data) {
             $source = $CFG_URL_DOWNLOAD.$hash;
          }
 
-         // curl url list, store reference to source
-         $urls[] = &$source;
+
+         // update structure, keep references to all sources in one array
+         $data['source'][$hashId] = &$source;
       }
+
+      // replace source array
+      $ruleset['source'] = &$newSourceArray;
    }
 
 
    // curl
    $curl = curl_multi_init();
-   foreach($urls as $id=>$url) {
+   foreach($data['source'] as $id=>$url) {
 
       $curlHandle[$id] = curl_init($url);
       curl_setopt($curlHandle[$id], CURLOPT_RETURNTRANSFER, true);
@@ -246,29 +263,25 @@ function feedsFetch(&$data) {
 
    foreach($curlHandle as $id=>$handle) {
 
+      $info    = curl_getinfo($handle);
       $content = curl_multi_getcontent($handle);
 
-      # separate headers and body
-      preg_match('/^(.*?)\r\n\r\n(.*)$/usi', $content, $m);
-      $headers = $m[1];
-      $content = $m[2];
+      $headers = mb_substr($content, 0, $info['header_size']);
+      $content = mb_substr($content, $info['header_size']);
 
-      # headers: get charset
-      $m = null;
-
+      // get encoding
+      $charset = null;
       $headers = explode("\n", $headers);
       foreach($headers as $header) {
-         if(preg_match('/^content-type:.*?charset=(.*)/usi', $header, $m)) {
+         preg_match('/content-type:.*charset=(.*)/usi', $header, $m);
+         if($m) {
             $charset = preg_replace('/(^\s*|\s*$)/u', '', $m[1]); // trim
          }
       }
       $charset = $charset ? $charset : 'auto';
 
-      // update structure
-      $urls[$id] = array(
-         'url' => $url,
-         'raw' => mb_convert_encoding($content, 'utf-8', $charset),
-      );
+      // update structure, store source content and normalize to utf-8
+      $data['sourceContent'][$id] = mb_convert_encoding($content, 'utf-8', $charset);
 
       curl_multi_remove_handle($curl, $handle);
    }
@@ -280,16 +293,30 @@ function feedsFetch(&$data) {
 /******************************************************************************/
 function feedsParse(&$data) {
 
+   // tags to extract
    $necessary = array('title','link','pubDate');
 
-   foreach($data['ruleSet'] as $rid=>&$ruleset) {
-      foreach($ruleset['source'] as &$source) {
+
+   foreach($data['config']['ruleSet'] as $rid=>&$ruleset) {
+
+      foreach($ruleset['source'] as $sid=>&$source) {
 
          // build DOM
          $dom = new DOMDocument();
-         $dom->loadXML($source['raw']);
+         $dom->loadXML($data['sourceContent'][$sid]);
 
+
+         // collect namespaces
+         $xp = new DOMXPath($dom);
+         $nodes = $xp->query('/rss/namespace::*');
+         foreach($nodes as $node) {
+            $data['xmlns'][$node->nodeName] = hsc($node->nodeName).'="'.hsc($node->nodeValue).'"';
+         }
+
+
+         // get items
          $nodes = $dom->getElementsByTagName('item');
+
          foreach($nodes as $node) {
 
             // init
@@ -310,9 +337,11 @@ function feedsParse(&$data) {
 
             // pubDate timestamp
             $item['pubDate_timestamp'] = strtotime($item['pubDate']);
+            $item['ruleset'] = $rid;
+            $item['source']  = $sid;
 
-            // update structure, merge items within ruleset
-            $ruleset['items'][] = $item;
+            // update structure, store items by source
+            $data['items'][] = $item;
          }
       }
    }
@@ -324,96 +353,122 @@ function feedsParse(&$data) {
 /******************************************************************************/
 function itemsFilter(&$data) {
 
-   $output = array();
+   // sort by pubDate desc before processing
+   // this keeps the most recent duplicate if duplicate removal is enabled
+   // we also dont have to sort later since all items are present
+   itemsSortPubDateDesc($data['items']);
 
-   foreach($data['ruleSet'] as $ruleset) {
 
-      // title duplicate reference list for current ruleset
-      $titleDupe = array();
+   // to count occurences and check duplicates
+   // [ruleset id] [type] [data] = count
+   $itemOccurence = array();
 
-      // link duplicate reference list for current ruleset
-      $linkDupe = array();
 
-      // sort by pubDate desc before processing to keep most recent duplicate if flags enabled
-      itemsSortPubDateDesc($ruleset['items']);
+   foreach($data['items'] as &$item) {
 
-      foreach($ruleset['items'] as $item) {
+      // ruleSet shorthand
+      $ruleset = $data['config']['ruleSet'][$item['ruleset']];
 
-         // skip duplicate title when flag enabled
-         if($ruleset['titleDuplicateRemove'] && $titleDupe[$item['title']]) {
+
+      // init match status
+      $item['match'] = false;
+
+
+      // count occurence of data by ruleset+type
+      // and create shorthands
+      $occTitle = ++$itemOccurence[$item['ruleset']] ['title'] [$item['title']];
+      $occLink  = ++$itemOccurence[$item['ruleset']] ['link']  [$item['link']];
+
+
+      // skip duplicate title when option enabled
+      if($ruleset['titleDuplicateRemove'] && $occTitle > 1) {
+         continue;
+      }
+
+
+      // skip duplicate link when option enabled
+      if($ruleset['linkDuplicateRemove'] && $occLink > 1) {
+         continue;
+      }
+
+
+      // init match score
+      // an item needs a score of at least 1 to be a match
+      $matchScore = 0;
+
+
+      // check item against rules
+      foreach($ruleset['rules'] as $rules) {
+
+         // rule: before
+         if($rules['before'] && $item['pubDate_timestamp'] > $rules['before']) {
             continue;
          }
 
-         // set title duplicate flag
-         $titleDupe[$item['title']] = true;
 
-         // skip duplicate link when flag enabled
-         if($ruleset['linkDuplicateRemove'] && $linkDupe[$item['link']]) {
+         // rule: after
+         if($rules['after'] && $item['pubDate_timestamp'] < $rules['after']) {
             continue;
          }
 
-         // set link duplicate flag
-         $linkDupe[$item['link']] = true;
 
-         // item has passed the rules
-         $itemRulesPass = 0;
-
-         // check item against rules
-         foreach($ruleset['rules'] as $rules) {
-
-
-            // before
-            if($rules['before'] && $item['pubDate_timestamp'] > $rules['before']) {
-               continue;
-            }
-
-
-            // after
-            if($rules['after'] && $item['pubDate_timestamp'] < $rules['after']) {
-               continue;
-            }
-
-
-            // titleMatch
+         // rule: titleMatch
+         if(is_array($rules['titleMatch'])) {
             $titleMatch = false;
-            foreach((array)$rules['titleMatch'] as $regex) {
+            foreach($rules['titleMatch'] as $regex) {
                if(preg_match($regex, $item['title'])) {
                   $titleMatch = true;
                   break;
                }
             }
-            if($titleMatch == false) {
+            if(!$titleMatch) {
                continue;
             }
+         }
 
 
-            // titleMatchNot
-            foreach((array)$rules['titleMatchNot'] as $regex) {
+         // rule: titleMatchNot
+         if(is_array($rules['titleMatchNot'])) {
+            foreach($rules['titleMatchNot'] as $regex) {
                if(preg_match($regex, $item['title'])) {
                   continue 2;
                }
             }
-
-
-            // if we reach this point, the item has passed the rules
-            ++$itemRulesPass;
          }
 
 
-         // item has passed, add to output
-         if($itemRulesPass > 0) {
-            $output[] = $item;
-         }
+         // if we reach this point, the item is a match
+         $item['match'] = true;
+
+
+         // skip remaining rules blocks and jump to next item
+         break;
       }
    }
+}
 
 
-   // sort output by pubDate desc
-   itemsSortPubDateDesc($output);
 
 
-   // update structure
-   $data['output'] = $output;
+/******************************************************************************/
+// we count stuff here
+function statsBuild(&$data) {
+
+   // shorthand
+   $stat = &$data['stat'];
+
+   $stat['sourceCount'] = count($data['source']);
+   $stat['itemCount']   = count($data['items']);
+
+   foreach($data['items'] as $item) {
+
+      ++$stat['itemCountBySource'][$item['source']];
+
+      if($item['match']) {
+         ++$stat['itemMatch'];
+         ++$stat['itemMatchBySource'][$item['source']];
+      }
+   }
 }
 
 
@@ -424,20 +479,47 @@ function rssBuild(&$data) {
 
    global $CFG_REQUEST_URI_FULL;
 
-   $output = '';
 
-   foreach($data['output'] as $item) {
-      $output .= "\n      ".$item['raw'];
+   // shorthand
+   $stat = $data['stat'];
+
+
+   // description, put stats in there
+   $desc = "
+matches   items   url
+".sprintf('%7s', $stat['itemMatch'])
+."   ".sprintf('%5s', $stat['itemCount'])
+."   ".$stat['sourceCount']." (total)";
+
+   foreach($data['source'] as $sid=>$url) {
+      $desc .= "\n".sprintf('%7s', (int)$stat['itemMatchBySource'][$sid])
+         ."   ".sprintf('%5s', $stat['itemCountBySource'][$sid])
+         ."   ".hsc($url);
    }
 
 
+   // items
+   $items = '';
+   foreach($data['items'] as $item) {
+      if($item['match']) {
+         $items .= "\n      ".$item['raw'];
+      }
+   }
+
+
+   // add xmlns
+   $xmlns = "\n   ".implode("\n   ", $data['xmlns']);
+
+
+   // finalize
    return '<?xml version="1.0" encoding="UTF-8"?>
-<rss version="2.0">
+<rss version="2.0"'.$xmlns.'>
    <channel>
       <title>rss-filter</title>
       <pubDate>'.hsc(gmdate(DATE_RSS)).'</pubDate>
-      <link>'.hsc($CFG_REQUEST_URI_FULL).'</link>'.
-      $output.'
+      <link>'.hsc($CFG_REQUEST_URI_FULL).'</link>
+      <description>'.hsc($desc).'</description>'.
+      $items.'
    </channel>
 </rss>';
 }
@@ -488,9 +570,11 @@ elseif($_GET['config']) {
    // filter items
    itemsFilter($data);
 
+   // generate statistics
+   statsBuild($data);
+
    // get output as rss
    $rss = rssBuild($data);
-
 
    // set xml header and output
    header('Content-Type: application/xml; charset=utf-8');

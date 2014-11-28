@@ -1,3 +1,8 @@
+2014-11-28 20:34 +0000
+   - massive rewrite of data handling
+   - added stats
+   - added xmlns passthrough
+
 2014-11-28 10:42 +0000
    - open_basedir bypass is now applied only when detected
 
