@@ -1,3 +1,6 @@
+2014-11-28 21:14 +0000
+   - made proxy more transparent
+
 2014-11-28 20:34 +0000
    - massive rewrite of data handling
    - added stats

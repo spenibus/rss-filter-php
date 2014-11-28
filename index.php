@@ -2,7 +2,7 @@
 /*******************************************************************************
 rss-filter
 creation: 2014-11-26 08:04 +0000
-  update: 2014-11-28 20:34 +0000
+  update: 2014-11-28 21:14 +0000
 *******************************************************************************/
 
 
@@ -193,6 +193,7 @@ function feedsFetch(&$data) {
    // detect open_basedir
    // we use self download when open_basedir is enabled
    // to ensure we follow redirections
+   ini_set('open_basedir', '.');
    $open_basedir_enabled = ini_get('open_basedir') ? true : false;
 
 
@@ -210,24 +211,27 @@ function feedsFetch(&$data) {
          $newSourceArray[$hashId] = &$source;
 
 
-         // open_basedir bypass
+         // update structure, keep references to all sources in one array
+         $data['source'][$hashId] = &$source;
+
+
+         // build curl urls list + open_basedir bypass
+         $url = $source;
          if($open_basedir_enabled) {
 
             // create dynamic hash to identify source
             // this ensures only the script can use itself as proxy
-            $hash = sha1(microtime(true).$source);
+            $hash = sha1(microtime(true).$url);
 
             // put target url in file
-            file_put_contents($CFG_DIR_DOWNLOAD.$hash, $source);
+            file_put_contents($CFG_DIR_DOWNLOAD.$hash, $url);
 
             // replace source url with proxy url
-            $source = $CFG_URL_DOWNLOAD.$hash;
+            $url = $CFG_URL_DOWNLOAD.$hash;
          }
-
-
-         // update structure, keep references to all sources in one array
-         $data['source'][$hashId] = &$source;
+         $urls[$hashId] = $url;
       }
+
 
       // replace source array
       $ruleset['source'] = &$newSourceArray;
@@ -236,7 +240,7 @@ function feedsFetch(&$data) {
 
    // curl
    $curl = curl_multi_init();
-   foreach($data['source'] as $id=>$url) {
+   foreach($urls as $id=>$url) {
 
       $curlHandle[$id] = curl_init($url);
       curl_setopt($curlHandle[$id], CURLOPT_RETURNTRANSFER, true);
