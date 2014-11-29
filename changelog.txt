@@ -1,3 +1,6 @@
+2014-11-29 14:28 +0000
+   - code cleanup
+
 2014-11-29 01:51 +0000
    - removed download folder made obsolete by new redirection handling
 

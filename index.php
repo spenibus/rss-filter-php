@@ -2,14 +2,14 @@
 /*******************************************************************************
 rss-filter
 creation: 2014-11-26 08:04 +0000
-  update: 2014-11-29 01:46 +0000
+  update: 2014-11-29 14:28 +0000
 *******************************************************************************/
 
 
 
 
 /******************************************************************************/
-error_reporting(!E_ALL);
+error_reporting(0);
 mb_internal_encoding('UTF-8');
 
 
@@ -26,10 +26,7 @@ $CFG_PROTOCOL_HOST = 'http'.($CFG_HTTPS ? 's' : '').'://'.$CFG_HOST;
 $CFG_SELF_FULL        = $CFG_PROTOCOL_HOST.$CFG_SELF;
 $CFG_REQUEST_URI_FULL = $CFG_PROTOCOL_HOST.$CFG_REQUEST_URI;
 
-$CFG_URL_DOWNLOAD = $CFG_SELF_FULL.'?download=';
-
 $CFG_DIR_CONFIG   = './config/';
-$CFG_DIR_DOWNLOAD = './download/';
 
 $CFG_KEYWORDS_INDEX = array(
    0 => 'name',
@@ -186,9 +183,6 @@ function configBuild($fn) {
 
 /******************************************************************************/
 function feedsFetch(&$data) {
-
-   global $CFG_DIR_DOWNLOAD, $CFG_URL_DOWNLOAD;
-
 
    // detect open_basedir or safe_mode
    // we use self download when open_basedir is enabled
@@ -438,11 +432,6 @@ function itemsFilter(&$data) {
       }
 
 
-      // init match score
-      // an item needs a score of at least 1 to be a match
-      $matchScore = 0;
-
-
       // check item against rules
       foreach($ruleset['rules'] as $rules) {
 
@@ -573,34 +562,8 @@ matches   items   url
 
 
 
-/******************************************************************* download */
-// this is a proxy to bypass the curl location follow issue with open_basedir
-// file_get_contents() follows redirections, so we call ourselves via curl
-if($_GET['download']) {
-
-   $hash = $_GET['download'];
-
-   // check id format
-   if(!preg_match('/^[0-9a-z]{40}$/i', $hash)) {
-      exit();
-   }
-
-   $fp = $CFG_DIR_DOWNLOAD.$hash;
-
-   $url = file_get_contents($fp);
-
-   unlink($fp);
-
-   $data = file_get_contents($url);
-
-   exit($data);
-}
-
-
-
-
 /*********************************************************** load config file */
-elseif($_GET['config']) {
+if($_GET['config']) {
 
    $configName = $_GET['config'];
 
