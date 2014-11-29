@@ -2,7 +2,7 @@
 /*******************************************************************************
 rss-filter
 creation: 2014-11-26 08:04 +0000
-  update: 2014-11-28 21:25 +0000
+  update: 2014-11-29 01:46 +0000
 *******************************************************************************/
 
 
@@ -190,10 +190,10 @@ function feedsFetch(&$data) {
    global $CFG_DIR_DOWNLOAD, $CFG_URL_DOWNLOAD;
 
 
-   // detect open_basedir
+   // detect open_basedir or safe_mode
    // we use self download when open_basedir is enabled
    // to ensure we follow redirections
-   $open_basedir_enabled = ini_get('open_basedir') ? true : false;
+   $curlFollowDisabled = ini_get('open_basedir') || ini_get('safe_mode') ? true : false;
 
 
    // queue source urls for curl
@@ -214,7 +214,7 @@ function feedsFetch(&$data) {
          $data['source'][$hashId] = &$source;
 
 
-         // build curl urls list
+         // build curl urls list + open_basedir bypass
          $url = $source;
          $urls[$hashId] = $url;
       }
@@ -237,7 +237,7 @@ function feedsFetch(&$data) {
       curl_setopt($curlHandle[$id], CURLOPT_SSL_VERIFYHOST, false);
 
       // follow redirections when open_basedir is disabled
-      if(!$open_basedir_enabled) {
+      if(!$curlFollowDisabled) {
          curl_setopt($curlHandle[$id], CURLOPT_FOLLOWLOCATION, true);
       }
 
@@ -245,24 +245,79 @@ function feedsFetch(&$data) {
    }
 
 
+   // func: response data
+   $responseData = function($h) {
+
+      $info    = curl_getinfo($h);
+      $content = curl_multi_getcontent($h);
+
+      return array(
+         'info'    => $info,
+         'headers' => mb_substr($content, 0, $info['header_size']),
+         'body'    => mb_substr($content, $info['header_size']),
+      );
+   };
+
+
+   // func: handle redirections when open_basedir is enabled
+   $curl_follow = function(&$running) use ($curl, $curlHandle, $responseData) {
+
+      $maxRedir = 10;
+      static $redirCount = array();
+
+
+      // build list of active handles
+      while($info = curl_multi_info_read($curl, $m)) {
+         $activeHandles[] = $info['handle'];
+      }
+
+
+      foreach($curlHandle as $id=>$handle) {
+
+         if(!in_array($handle, $activeHandles)) {
+            continue;
+         }
+
+         $url = $responseData($handle);
+         $url = $url['info']['redirect_url'];
+
+         // curl returned a new location
+         // we also have not reached max redirections
+         if($url && ++$redirCount[$id] <= $maxRedir) {
+
+            curl_multi_remove_handle($curl, $handle);
+            curl_setopt($handle, CURLOPT_URL, $url);
+            curl_multi_add_handle($curl, $handle);
+
+            // ensure one more loop to trigger exec
+            ++$running;
+         }
+      }
+   };
+
+
+   // check progress
    $running = 1;
    while($running > 0) {
-       curl_multi_exec($curl, $running);
-       usleep(100000); // spare the cpu
+
+      curl_multi_exec($curl, $running);
+      curl_multi_select($curl, 2);
+
+      // handle redirection when open_basedir is enabled
+      // keep running if redirection found
+      if($curlFollowDisabled) {
+         $curl_follow($running);
+      }
    }
 
 
    foreach($curlHandle as $id=>$handle) {
 
-      $info    = curl_getinfo($handle);
-      $content = curl_multi_getcontent($handle);
-
-      $headers = mb_substr($content, 0, $info['header_size']);
-      $content = mb_substr($content, $info['header_size']);
+      $response = $responseData($handle);
 
       // get encoding
       $charset = null;
-      $headers = explode("\n", $headers);
+      $headers = explode("\n", $response['headers']);
       foreach($headers as $header) {
          preg_match('/content-type:.*charset=(.*)/usi', $header, $m);
          if($m) {
@@ -272,7 +327,7 @@ function feedsFetch(&$data) {
       $charset = $charset ? $charset : 'auto';
 
       // update structure, store source content and normalize to utf-8
-      $data['sourceContent'][$id] = mb_convert_encoding($content, 'utf-8', $charset);
+      $data['sourceContent'][$id] = mb_convert_encoding($response['body'], 'utf-8', $charset);
 
       curl_multi_remove_handle($curl, $handle);
    }
@@ -518,8 +573,34 @@ matches   items   url
 
 
 
+/******************************************************************* download */
+// this is a proxy to bypass the curl location follow issue with open_basedir
+// file_get_contents() follows redirections, so we call ourselves via curl
+if($_GET['download']) {
+
+   $hash = $_GET['download'];
+
+   // check id format
+   if(!preg_match('/^[0-9a-z]{40}$/i', $hash)) {
+      exit();
+   }
+
+   $fp = $CFG_DIR_DOWNLOAD.$hash;
+
+   $url = file_get_contents($fp);
+
+   unlink($fp);
+
+   $data = file_get_contents($url);
+
+   exit($data);
+}
+
+
+
+
 /*********************************************************** load config file */
-if($_GET['config']) {
+elseif($_GET['config']) {
 
    $configName = $_GET['config'];
 

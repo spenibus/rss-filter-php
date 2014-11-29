@@ -1,3 +1,6 @@
+2014-11-29 01:46 +0000
+   - added new workaround for unavailable CURLOPT_FOLLOWLOCATION
+
 2014-11-28 21:25 +0000
    - removed open_basedir bypass until better solution found
 
