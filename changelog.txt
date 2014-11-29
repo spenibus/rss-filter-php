@@ -1,3 +1,6 @@
+2014-11-29 16:41 +0000
+   - rewrote url data fetching
+
 2014-11-29 14:28 +0000
    - code cleanup
 

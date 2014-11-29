@@ -2,7 +2,7 @@
 /*******************************************************************************
 rss-filter
 creation: 2014-11-26 08:04 +0000
-  update: 2014-11-29 14:28 +0000
+  update: 2014-11-29 16:41 +0000
 *******************************************************************************/
 
 
@@ -26,7 +26,9 @@ $CFG_PROTOCOL_HOST = 'http'.($CFG_HTTPS ? 's' : '').'://'.$CFG_HOST;
 $CFG_SELF_FULL        = $CFG_PROTOCOL_HOST.$CFG_SELF;
 $CFG_REQUEST_URI_FULL = $CFG_PROTOCOL_HOST.$CFG_REQUEST_URI;
 
-$CFG_DIR_CONFIG   = './config/';
+$CFG_DIR_CONFIG = './config/';
+
+$CFG_FETCH_MAX_REDIR = 10;
 
 $CFG_KEYWORDS_INDEX = array(
    0 => 'name',
@@ -115,12 +117,14 @@ function configBuild($fn) {
    $fp = $CFG_DIR_CONFIG.$fn.'.xml';
    $fc = file_get_contents($fp);
 
+
    // build DOM
    $dom = new DOMDocument();
    $dom->loadXML($fc);
    $dom = $dom->documentElement;
 
-   // build config tree
+
+   // build config tree (recursive)
    $treeMaker = function($node, $kw, $self) {
 
       global $CFG_KEYWORDS_CALLBACK;
@@ -184,13 +188,10 @@ function configBuild($fn) {
 /******************************************************************************/
 function feedsFetch(&$data) {
 
-   // detect open_basedir or safe_mode
-   // we use self download when open_basedir is enabled
-   // to ensure we follow redirections
-   $curlFollowDisabled = ini_get('open_basedir') || ini_get('safe_mode') ? true : false;
-
+   global $CFG_FETCH_MAX_REDIR;
 
    // queue source urls for curl
+   // we use a hashmap because array indexes will not survive merging
    foreach($data['config']['ruleSet'] as $rid=>&$ruleset) {
 
       // temp hashmap storage
@@ -203,127 +204,128 @@ function feedsFetch(&$data) {
          $hashId = sha1($source);
          $newSourceArray[$hashId] = &$source;
 
-
          // update structure, keep references to all sources in one array
          $data['source'][$hashId] = &$source;
-
-
-         // build curl urls list + open_basedir bypass
-         $url = $source;
-         $urls[$hashId] = $url;
       }
-
 
       // replace source array
       $ruleset['source'] = &$newSourceArray;
    }
 
 
-   // curl
+   // shorthand: urls list
+   $urls = &$data['source'];
+
+
+   // curl handles storage
+   $curlHandle = array();
+
+
+   // curl init
    $curl = curl_multi_init();
    foreach($urls as $id=>$url) {
 
       $curlHandle[$id] = curl_init($url);
       curl_setopt($curlHandle[$id], CURLOPT_RETURNTRANSFER, true);
-      curl_setopt($curlHandle[$id], CURLOPT_HEADER, true);
-      curl_setopt($curlHandle[$id], CURLOPT_TIMEOUT, 20);
+      curl_setopt($curlHandle[$id], CURLOPT_HEADER,         true);
+      curl_setopt($curlHandle[$id], CURLOPT_TIMEOUT,        20);
       curl_setopt($curlHandle[$id], CURLOPT_SSL_VERIFYPEER, false);
       curl_setopt($curlHandle[$id], CURLOPT_SSL_VERIFYHOST, false);
 
-      // follow redirections when open_basedir is disabled
-      if(!$curlFollowDisabled) {
-         curl_setopt($curlHandle[$id], CURLOPT_FOLLOWLOCATION, true);
-      }
+      // follow redirections (there is a fallback if this cant be enabled)
+      curl_setopt($curlHandle[$id], CURLOPT_FOLLOWLOCATION, true);
+      curl_setopt($curlHandle[$id], CURLOPT_FOLLOWLOCATION, $CFG_FETCH_MAX_REDIR);
 
       curl_multi_add_handle($curl, $curlHandle[$id]);
    }
 
 
-   // func: response data
-   $responseData = function($h) {
-
-      $info    = curl_getinfo($h);
-      $content = curl_multi_getcontent($h);
-
-      return array(
-         'info'    => $info,
-         'headers' => mb_substr($content, 0, $info['header_size']),
-         'body'    => mb_substr($content, $info['header_size']),
-      );
-   };
+   // url data storage
+   $urlData = array();
 
 
-   // func: handle redirections when open_basedir is enabled
-   $curl_follow = function(&$running) use ($curl, $curlHandle, $responseData) {
+   // fallback: redirection count per url
+   $redirCount = array();
 
-      $maxRedir = 10;
-      static $redirCount = array();
+
+   // run curl
+   $running = 1;
+   while($running > 0) {
+
+      // exec
+      curl_multi_exec($curl, $running);
+
+
+      // wait until progress
+      curl_multi_select($curl, 1);
 
 
       // build list of active handles
+      $activeHandles = array();
       while($info = curl_multi_info_read($curl, $m)) {
          $activeHandles[] = $info['handle'];
       }
 
 
+      // process active handles
       foreach($curlHandle as $id=>$handle) {
 
+         // skip inactive handles
          if(!in_array($handle, $activeHandles)) {
             continue;
          }
 
-         $url = $responseData($handle);
-         $url = $url['info']['redirect_url'];
 
+         // info
+         $info = curl_getinfo($handle);
+
+
+         // fallback: handle redirection manually
          // curl returned a new location
          // we also have not reached max redirections
-         if($url && ++$redirCount[$id] <= $maxRedir) {
+         if($info['redirect_url'] && ++$redirCount[$id] <= $CFG_FETCH_MAX_REDIR) {
 
+            // remove handle, update url, add handle back
             curl_multi_remove_handle($curl, $handle);
-            curl_setopt($handle, CURLOPT_URL, $url);
+            curl_setopt($handle, CURLOPT_URL, $info['redirect_url']);
             curl_multi_add_handle($curl, $handle);
 
-            // ensure one more loop to trigger exec
+            // update running status to trigger next loop iteration
             ++$running;
          }
-      }
-   };
 
 
-   // check progress
-   $running = 1;
-   while($running > 0) {
+         // process data
+         else {
 
-      curl_multi_exec($curl, $running);
-      curl_multi_select($curl, 2);
+            // content
+            $content = curl_multi_getcontent($handle);
 
-      // handle redirection when open_basedir is enabled
-      // keep running if redirection found
-      if($curlFollowDisabled) {
-         $curl_follow($running);
-      }
-   }
+            // build data structure
+            $urlData[$id] = array(
+               'info'    => $info,
+               'headers' => mb_substr($content, 0, $info['header_size']),
+               'body'    => mb_substr($content, $info['header_size']),
+            );
 
+            // get source encoding from headers
+            $charset = null;
+            $headers = explode("\n", $urlData[$id]['headers']);
+            foreach($headers as $header) {
+               preg_match('/content-type:.*charset=(.*)/usi', $header, $m);
+               if($m) {
+                  $charset = preg_replace('/(^\s*|\s*$)/u', '', $m[1]); // trim
+               }
+            }
+            $charset = $charset ? $charset : 'auto';
 
-   foreach($curlHandle as $id=>$handle) {
+            // update structure, store source content and normalize to utf-8
+            $data['sourceContent'][$id] = mb_convert_encoding($urlData[$id]['body'], 'utf-8', $charset);
 
-      $response = $responseData($handle);
-
-      // get encoding
-      $charset = null;
-      $headers = explode("\n", $response['headers']);
-      foreach($headers as $header) {
-         preg_match('/content-type:.*charset=(.*)/usi', $header, $m);
-         if($m) {
-            $charset = preg_replace('/(^\s*|\s*$)/u', '', $m[1]); // trim
+            // remove handle
+            curl_multi_remove_handle($curl, $handle);
          }
       }
-      $charset = $charset ? $charset : 'auto';
-
-      // update structure, store source content and normalize to utf-8
-      $data['sourceContent'][$id] = mb_convert_encoding($response['body'], 'utf-8', $charset);
-
-      curl_multi_remove_handle($curl, $handle);
    }
 }
 
