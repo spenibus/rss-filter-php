@@ -2,7 +2,7 @@
 /*******************************************************************************
 rss-filter
 creation: 2014-11-26 08:04 +0000
-  update: 2014-11-29 16:41 +0000
+  update: 2014-11-29 17:00 +0000
 *******************************************************************************/
 
 
@@ -234,7 +234,7 @@ function feedsFetch(&$data) {
 
       // follow redirections (there is a fallback if this cant be enabled)
       curl_setopt($curlHandle[$id], CURLOPT_FOLLOWLOCATION, true);
-      curl_setopt($curlHandle[$id], CURLOPT_FOLLOWLOCATION, $CFG_FETCH_MAX_REDIR);
+      curl_setopt($curlHandle[$id], CURLOPT_MAXREDIRS,      $CFG_FETCH_MAX_REDIR);
 
       curl_multi_add_handle($curl, $curlHandle[$id]);
    }
