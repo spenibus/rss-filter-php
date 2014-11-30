@@ -1,3 +1,6 @@
+2014-11-30 15:27 +0000
+   - casting stats values as int when displaying to return null as zero
+
 2014-11-29 17:00 +0000
    - fixed wrong curl option
 

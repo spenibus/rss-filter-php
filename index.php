@@ -2,7 +2,7 @@
 /*******************************************************************************
 rss-filter
 creation: 2014-11-26 08:04 +0000
-  update: 2014-11-29 17:00 +0000
+  update: 2014-11-30 15:27 +0000
 *******************************************************************************/
 
 
@@ -524,13 +524,13 @@ function rssBuild(&$data) {
    // description, put stats in there
    $desc = "
 matches   items   url
-".sprintf('%7s', $stat['itemMatch'])
-."   ".sprintf('%5s', $stat['itemCount'])
-."   ".$stat['sourceCount']." (total)";
+".sprintf('%7s', (int)$stat['itemMatch'])
+."   ".sprintf('%5s', (int)$stat['itemCount'])
+."   ".(int)$stat['sourceCount']." (total)";
 
    foreach($data['source'] as $sid=>$url) {
       $desc .= "\n".sprintf('%7s', (int)$stat['itemMatchBySource'][$sid])
-         ."   ".sprintf('%5s', $stat['itemCountBySource'][$sid])
+         ."   ".sprintf('%5s', (int)$stat['itemCountBySource'][$sid])
          ."   ".hsc($url);
    }
 
