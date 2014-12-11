@@ -4,6 +4,7 @@
    <!-- basic config example -->
    <ruleSet>
       <source></source>
+      <timeout></timeout>
       <titleDuplicateRemove></titleDuplicateRemove>
       <linkDuplicateRemove></linkDuplicateRemove>
       <rules>
