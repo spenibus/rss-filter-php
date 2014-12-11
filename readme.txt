@@ -17,6 +17,7 @@ Configuration structure:
 <config>
    <ruleSet>
       <source></source>
+      <timeout></timeout>
       <titleDuplicateRemove></titleDuplicateRemove>
       <linkDuplicateRemove></linkDuplicateRemove>
       <rules>
@@ -40,6 +41,9 @@ ruleSet
 source
    -  a url pointing to a rss feed
    -  can occur multiple times within "ruleSet"
+timeout
+   - how long to wait for a source
+   - this is any number above zero
 titleDuplicateRemove
    -  value: true|false, default: false
    -  appears only once within ruleSet

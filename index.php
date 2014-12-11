@@ -2,7 +2,7 @@
 /*******************************************************************************
 rss-filter
 creation: 2014-11-26 08:04 +0000
-  update: 2014-11-30 15:27 +0000
+  update: 2014-12-11 11:52 +0000
 *******************************************************************************/
 
 
@@ -28,6 +28,7 @@ $CFG_REQUEST_URI_FULL = $CFG_PROTOCOL_HOST.$CFG_REQUEST_URI;
 
 $CFG_DIR_CONFIG = './config/';
 
+$CFG_FETCH_TIMEOUT   = 20;
 $CFG_FETCH_MAX_REDIR = 10;
 
 $CFG_KEYWORDS_INDEX = array(
@@ -51,6 +52,7 @@ $CFG_KEYWORDS = array(
    array('ruleSet', 2, false),
    // ruleSet
    array('source',               1, false),
+   array('timeout',              1, true),
    array('titleDuplicateRemove', 1, true),
    array('linkDuplicateRemove',  1, true),
    array('rules',                2, false),
@@ -188,7 +190,7 @@ function configBuild($fn) {
 /******************************************************************************/
 function feedsFetch(&$data) {
 
-   global $CFG_FETCH_MAX_REDIR;
+   global $CFG_FETCH_MAX_REDIR, $CFG_FETCH_TIMEOUT;
 
    // queue source urls for curl
    // we use a hashmap because array indexes will not survive merging
@@ -198,6 +200,14 @@ function feedsFetch(&$data) {
       unset($newSourceArray);
       $newSourceArray = array();
 
+
+      // get timeout value for current ruleset
+      $timeout = (int)$ruleset['timeout'];
+      if($timeout == 0) {
+         $timeout = $CFG_FETCH_TIMEOUT;
+      }
+
+
       foreach($ruleset['source'] as $sid=>&$source) {
 
          // hashmap source
@@ -206,12 +216,16 @@ function feedsFetch(&$data) {
 
          // update structure, keep references to all sources in one array
          $data['source'][$hashId] = &$source;
+
+         // timeout for source
+         $data['timeout'][$hashId] = $timeout;
       }
 
       // replace source array
       $ruleset['source'] = &$newSourceArray;
-   }
 
+
+   }
 
    // shorthand: urls list
    $urls = &$data['source'];
@@ -228,7 +242,7 @@ function feedsFetch(&$data) {
       $curlHandle[$id] = curl_init($url);
       curl_setopt($curlHandle[$id], CURLOPT_RETURNTRANSFER, true);
       curl_setopt($curlHandle[$id], CURLOPT_HEADER,         true);
-      curl_setopt($curlHandle[$id], CURLOPT_TIMEOUT,        20);
+      curl_setopt($curlHandle[$id], CURLOPT_TIMEOUT,        $data['timeout'][$id]);
       curl_setopt($curlHandle[$id], CURLOPT_SSL_VERIFYPEER, false);
       curl_setopt($curlHandle[$id], CURLOPT_SSL_VERIFYHOST, false);
 
