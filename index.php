@@ -1,8 +1,7 @@
 <?php
 /*******************************************************************************
 rss-filter
-creation: 2014-11-26 08:04 +0000
-  update: 2014-12-11 11:52 +0000
+version: 20150503-2037
 *******************************************************************************/
 
 
@@ -39,7 +38,7 @@ $CFG_KEYWORDS_INDEX = array(
 
 $CFG_KEYWORDS = array(
    /*
-   array('name', 'type', unique)
+   array(name, type, unique)
       0   name     str    *
       1   type     int    1 data
                           2 container
@@ -57,10 +56,11 @@ $CFG_KEYWORDS = array(
    array('linkDuplicateRemove',  1, true),
    array('rules',                2, false),
    // rules
-   array('titleMatch',    1, false),
-   array('titleMatchNot', 1, false),
-   array('before',        1, true),
-   array('after',         1, true),
+   array('titleMatch',     1, false),
+   array('titleMatchNot',  1, false),
+   array('titleMatchMust', 1, false),
+   array('before',         1, true),
+   array('after',          1, true),
 );
 
 $CFG_KEYWORDS_CALLBACK['before'] = function($data) {
@@ -451,6 +451,7 @@ function itemsFilter(&$data) {
       // check item against rules
       foreach($ruleset['rules'] as $rules) {
 
+
          // rule: before
          if($rules['before'] && $item['pubDate_timestamp'] > $rules['before']) {
             continue;
@@ -460,6 +461,30 @@ function itemsFilter(&$data) {
          // rule: after
          if($rules['after'] && $item['pubDate_timestamp'] < $rules['after']) {
             continue;
+         }
+
+
+         // rule: titleMatchMust
+         if(is_array($rules['titleMatchMust'])) {
+            foreach($rules['titleMatchMust'] as $regex) {
+               if(!preg_match($regex, $item['title'])) {
+
+                  // skip ruleset
+                  continue 2;
+               }
+            }
+         }
+
+
+         // rule: titleMatchNot
+         if(is_array($rules['titleMatchNot'])) {
+            foreach($rules['titleMatchNot'] as $regex) {
+               if(preg_match($regex, $item['title'])) {
+
+                  // skip ruleset
+                  continue 2;
+               }
+            }
          }
 
 
@@ -474,16 +499,6 @@ function itemsFilter(&$data) {
             }
             if(!$titleMatch) {
                continue;
-            }
-         }
-
-
-         // rule: titleMatchNot
-         if(is_array($rules['titleMatchNot'])) {
-            foreach($rules['titleMatchNot'] as $regex) {
-               if(preg_match($regex, $item['title'])) {
-                  continue 2;
-               }
             }
          }
 

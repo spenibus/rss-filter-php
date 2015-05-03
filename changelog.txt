@@ -1,3 +1,7 @@
+2015-05-03 20:37 +0000
+- added keyword: titleMatchMust
+
+
 2014-12-11 12:01 +0000
 - updated example.xml
 

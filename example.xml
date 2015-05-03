@@ -3,13 +3,14 @@
 
    <!-- basic config example -->
    <ruleSet>
-      <source></source>
+      <source><![CDATA[http://example.com/rss]]></source>
       <timeout></timeout>
       <titleDuplicateRemove></titleDuplicateRemove>
       <linkDuplicateRemove></linkDuplicateRemove>
       <rules>
          <titleMatch></titleMatch>
          <titleMatchNot></titleMatchNot>
+         <titleMatchMust></titleMatchMust>
          <before></before>
          <after></after>
       </rules>

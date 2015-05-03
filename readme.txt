@@ -23,6 +23,7 @@ Configuration structure:
       <rules>
          <titleMatch></titleMatch>
          <titleMatchNot></titleMatchNot>
+         <titleMatchMust></titleMatchMust>
          <before></before>
          <after></after>
       </rules>
@@ -61,10 +62,16 @@ titleMatch
    -  a regular expression usable by PCRE (preg_*), ex: "/(foo|bar)/siu"
    -  when at least one "titleMatch" matches the title of an item from one of
       the sources, the item is kept
+   -  this works like the logical operator "OR"
 titleMatchNot
    -  a regular expression usable by PCRE (preg_*), ex: "/(foo|bar)/siu"
    -  when at least one "titleMatchNot" matches the title of an item from one of
       the sources, the item is discarded
+titleMatchMust
+   -  a regular expression usable by PCRE (preg_*), ex: "/(foo|bar)/siu"
+   -  when at least one "titleMatchMust" doesn't match the title of an item from
+      one of the sources, the item is discarded
+   -  this works like the logical operator "AND"
 before
    -  a string representing time than can be parsed by "strtotime()"
    -  personally recommended format: "2014-12-31 23:59:59 +1200"
