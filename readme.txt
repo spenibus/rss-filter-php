@@ -1,4 +1,8 @@
-rss-filter aggregates and filters rss feeds to output only desired items as a
+rss-filter
+http://spenibus.net
+
+
+This script aggregates and filters rss feeds to output only desired items as a
 single feed.
 
 -  Configuration files use the xml extension.
