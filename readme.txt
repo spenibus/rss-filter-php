@@ -1,5 +1,7 @@
 rss-filter
 http://spenibus.net
+https://github.com/spenibus/rss-filter-php
+https://gitlab.com/spenibus/rss-filter-php
 
 
 This script aggregates and filters rss feeds to output only desired items as a
