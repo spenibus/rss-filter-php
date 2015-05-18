@@ -52,6 +52,7 @@ $CFG_KEYWORDS = array(
    // ruleSet
    array('source',               1, false),
    array('timeout',              1, true),
+   array('userAgent',            1, true),
    array('titleDuplicateRemove', 1, true),
    array('linkDuplicateRemove',  1, true),
    array('rules',                2, false),
@@ -208,6 +209,13 @@ function feedsFetch(&$data) {
       }
 
 
+      // get user agent value for current ruleset
+      $useragent = null;
+      if($ruleset['userAgent'] != null) {
+         $useragent = $ruleset['userAgent'];
+      }
+
+
       foreach($ruleset['source'] as $sid=>&$source) {
 
          // hashmap source
@@ -219,13 +227,15 @@ function feedsFetch(&$data) {
 
          // timeout for source
          $data['timeout'][$hashId] = $timeout;
+
+         // user agent for source
+         $data['userAgent'][$hashId] = $useragent;
       }
 
       // replace source array
       $ruleset['source'] = &$newSourceArray;
-
-
    }
+
 
    // shorthand: urls list
    $urls = &$data['source'];
@@ -243,6 +253,7 @@ function feedsFetch(&$data) {
       curl_setopt($curlHandle[$id], CURLOPT_RETURNTRANSFER, true);
       curl_setopt($curlHandle[$id], CURLOPT_HEADER,         true);
       curl_setopt($curlHandle[$id], CURLOPT_TIMEOUT,        $data['timeout'][$id]);
+      curl_setopt($curlHandle[$id], CURLOPT_USERAGENT,      $data['userAgent'][$id]);
       curl_setopt($curlHandle[$id], CURLOPT_SSL_VERIFYPEER, false);
       curl_setopt($curlHandle[$id], CURLOPT_SSL_VERIFYHOST, false);
 

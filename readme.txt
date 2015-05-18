@@ -24,6 +24,7 @@ Configuration structure:
    <ruleSet>
       <source></source>
       <timeout></timeout>
+      <userAgent></userAgent>
       <titleDuplicateRemove></titleDuplicateRemove>
       <linkDuplicateRemove></linkDuplicateRemove>
       <rules>
@@ -51,6 +52,8 @@ source
 timeout
    - how long to wait for a source
    - this is any number above zero
+userAgent
+   - adds a user agent to the http request for the source
 titleDuplicateRemove
    -  value: true|false, default: false
    -  appears only once within ruleSet
