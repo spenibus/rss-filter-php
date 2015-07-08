@@ -1,7 +1,7 @@
 <?php
 /*******************************************************************************
 rss-filter
-version: 20150503-2037
+version: 20150708-0652
 *******************************************************************************/
 
 
@@ -256,6 +256,7 @@ function feedsFetch(&$data) {
       curl_setopt($curlHandle[$id], CURLOPT_USERAGENT,      $data['userAgent'][$id]);
       curl_setopt($curlHandle[$id], CURLOPT_SSL_VERIFYPEER, false);
       curl_setopt($curlHandle[$id], CURLOPT_SSL_VERIFYHOST, false);
+      curl_setopt($curlHandle[$id], CURLOPT_ENCODING,       ''); // gzip etc
 
       // follow redirections (there is a fallback if this cant be enabled)
       curl_setopt($curlHandle[$id], CURLOPT_FOLLOWLOCATION, true);
