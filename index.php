@@ -1,7 +1,7 @@
 <?php
 /*******************************************************************************
 rss-filter
-version: 20150708-0652
+version: 20160904-1400
 *******************************************************************************/
 
 
@@ -382,8 +382,23 @@ function feedsParse(&$data) {
          }
 
 
-         // get items
-         $nodes = $dom->getElementsByTagName('item');
+         // init nodes storage
+         $nodes = array();
+
+         // collect rss items
+         $nodesRss = $dom->getElementsByTagName('item');
+
+         foreach($nodesRss as $nodeRss) {
+            $nodes[] = $nodeRss;
+         }
+
+         // collect atom entries
+         $nodesAtom = $dom->getElementsByTagName('entry');
+
+         foreach($nodesAtom as $nodeAtom) {
+            $nodes[] = $nodeAtom;
+         }
+
 
          foreach($nodes as $node) {
 
