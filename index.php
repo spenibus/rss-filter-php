@@ -657,5 +657,6 @@ if($_GET['config']) {
 
 
 /******************************************************************** default */
-exit('rss-filter<br/><a href="http://spenibus.net">spenibus.net</a>');
+header('content-type: text/plain');
+exit(file_get_contents('./README.md'));
 ?>
