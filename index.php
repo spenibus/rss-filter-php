@@ -1,7 +1,7 @@
 <?php
 /*******************************************************************************
 rss-filter
-version: 20160904-1400
+version: 20170330-1856
 *******************************************************************************/
 
 
@@ -47,6 +47,7 @@ $CFG_KEYWORDS = array(
    */
    // root
    array('config', 2, true),
+   array('title',  1, true),
    // config
    array('ruleSet', 2, false),
    // ruleSet
@@ -604,11 +605,15 @@ matches   items   url
    $xmlns = "\n   ".implode("\n   ", $data['xmlns']);
 
 
+   $feedTitle = isset($data['config']['title'])
+      ? $data['config']['title']
+      : 'rss-filter';
+
    // finalize
    return '<?xml version="1.0" encoding="UTF-8"?>
 <rss version="2.0"'.$xmlns.'>
    <channel>
-      <title>rss-filter</title>
+      <title>'.hsc($feedTitle).'</title>
       <pubDate>'.hsc(gmdate(DATE_RSS)).'</pubDate>
       <link>'.hsc($CFG_REQUEST_URI_FULL).'</link>
       <description>'.hsc($desc).'</description>'.

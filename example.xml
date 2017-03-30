@@ -1,20 +1,23 @@
-<!-- remember, this goes in "./config/" -->
+<!-- remember, this goes in folder "./config/" -->
 <config>
 
-   <!-- basic config example -->
-   <ruleSet>
-      <source><![CDATA[http://example.com/rss]]></source>
-      <timeout>10</timeout>
-      <userAgent>Mozilla/5.0 (Windows NT 6.1; WOW64; rv:38.0) Gecko/20100101 Firefox/38.0</userAgent>
-      <titleDuplicateRemove>false</titleDuplicateRemove>
-      <linkDuplicateRemove>false</linkDuplicateRemove>
-      <rules>
-         <titleMatch>/.*?/si</titleMatch>
-         <titleMatchNot>/.*?/si</titleMatchNot>
-         <titleMatchMust>/.*?/si</titleMatchMust>
-         <before>2014-12-31 23:59:59 +1200</before>
-         <after>2014-12-31 23:59:59 +1200</after>
-      </rules>
-   </ruleSet>
+    <!-- set a custom feed title -->
+    <title>My custom feed</title>
+
+    <!-- basic config example -->
+    <ruleSet>
+        <source><![CDATA[http://example.com/rss]]></source>
+        <timeout>10</timeout>
+        <userAgent>Mozilla/5.0 (Windows NT 6.1; WOW64; rv:38.0) Gecko/20100101 Firefox/38.0</userAgent>
+        <titleDuplicateRemove>false</titleDuplicateRemove>
+        <linkDuplicateRemove>false</linkDuplicateRemove>
+        <rules>
+            <titleMatch>/.*?/si</titleMatch>
+            <titleMatchNot>/.*?/si</titleMatchNot>
+            <titleMatchMust>/.*?/si</titleMatchMust>
+            <before>2014-12-31 23:59:59 +1200</before>
+            <after>2014-12-31 23:59:59 +1200</after>
+        </rules>
+    </ruleSet>
 
 </config>
