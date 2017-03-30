@@ -21,20 +21,21 @@ single feed.
 Configuration structure:
 
 <config>
-   <ruleSet>
-      <source></source>
-      <timeout></timeout>
-      <userAgent></userAgent>
-      <titleDuplicateRemove></titleDuplicateRemove>
-      <linkDuplicateRemove></linkDuplicateRemove>
-      <rules>
-         <titleMatch></titleMatch>
-         <titleMatchNot></titleMatchNot>
-         <titleMatchMust></titleMatchMust>
-         <before></before>
-         <after></after>
-      </rules>
-   </ruleSet>
+    <title></title>
+    <ruleSet>
+        <source></source>
+        <timeout></timeout>
+        <userAgent></userAgent>
+        <titleDuplicateRemove></titleDuplicateRemove>
+        <linkDuplicateRemove></linkDuplicateRemove>
+        <rules>
+            <titleMatch></titleMatch>
+            <titleMatchNot></titleMatchNot>
+            <titleMatchMust></titleMatchMust>
+            <before></before>
+            <after></after>
+        </rules>
+    </ruleSet>
 </config>
 
 
@@ -43,6 +44,9 @@ Configuration keywords:
 config
    -  root element
    -  appears only once in entire document
+title
+   -  sets the title of the output feed
+   -  appears only once within "config"
 ruleSet
    -  a configuration block
    -  can occur multiple times within "config"
