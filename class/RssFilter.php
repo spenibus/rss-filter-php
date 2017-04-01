@@ -218,6 +218,9 @@ class RssFilter {
         $tree = $treeMaker($dom, $keywords, $treeMaker);
 
         $this->CFG_CONFIG_DATA = array('config'=>$tree);
+
+        // chaining
+        return $this;
     }
 
 
@@ -372,6 +375,9 @@ class RssFilter {
                 }
             }
         }
+
+        // chaining
+        return $this;
     }
 
 
@@ -447,6 +453,9 @@ class RssFilter {
                 }
             }
         }
+
+        // chaining
+        return $this;
     }
 
 
@@ -547,6 +556,9 @@ class RssFilter {
                 break;
             }
         }
+
+        // chaining
+        return $this;
     }
 
 
@@ -570,6 +582,9 @@ class RssFilter {
                 ++$stat['itemMatchBySource'][$item['source']];
             }
         }
+
+        // chaining
+        return $this;
     }
 
 
@@ -628,23 +643,13 @@ matches   items   url
     ***/
     public function displayFeed() {
 
-        // build config
-        $this->configBuild();
-
-        // download sources
-        $this->feedsFetch();
-
-        // parse sources
-        $this->feedsParse();
-
-        // filter items
-        $this->itemsFilter();
-
-        // generate statistics
-        $this->statsBuild();
-
-        // get output as rss
-        $rss = $this->rssBuild();
+        $rss = $this
+            ->configBuild() // build config
+            ->feedsFetch()  // download sources
+            ->feedsParse()  // parse sources
+            ->itemsFilter() // filter items
+            ->statsBuild()  // generate statistics
+            ->rssBuild();   // get output as rss
 
         // set xml header and output
         header('Content-Type: application/xml; charset=utf-8');
