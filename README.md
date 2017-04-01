@@ -77,13 +77,13 @@ Configuration keywords
 
  - `titleDuplicateRemove`
    - value: true|false, default: false
-   - appears only once within ruleSet
+   - appears only once within `ruleSet`
    - when this is set to `true`, if multiple items from sources share the same
      title, only the most recent is kept
 
  - `linkDuplicateRemove`
    - value: true|false, default: false
-   - appears only once within ruleSet
+   - appears only once within `ruleSet`
    - when this is set to `true`, if multiple items from sources share the same
      link, only the most recent is kept
 
@@ -140,8 +140,8 @@ some items, another block can still include them
 ````
 
 
-the example above will return "red army" because the first `rules` block has
-already added the item to the output when the second `rules` block is evaluated
+The example above will return "red army" because the first `rules` block has
+already added the item to the output when the second `rules` block is evaluated.
 
 
 ````
@@ -152,7 +152,7 @@ already added the item to the output when the second `rules` block is evaluated
 ````
 
 
-the example above will not return "red army"
+The example above will not return "red army".
 
 
 ````
@@ -166,11 +166,11 @@ the example above will not return "red army"
 ````
 
 
-the example above will also return "red army" because even though the first
-`rules` block has discarded the item, the second one will match it
+The example above will also return "red army" because even though the first
+`rules` block has discarded the item, the second one will match it.
 
 
-It is possible to remove unused keywords, as in the example below
+It is possible to remove unused keywords, as in the example below:
 
 
 ````
