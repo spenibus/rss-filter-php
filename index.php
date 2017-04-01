@@ -6,7 +6,7 @@ version: 20170401-2143
 
 
 /******************************************************************************/
-error_reporting(~E_NOTICE);
+error_reporting(0);
 mb_internal_encoding('UTF-8');
 
 
