@@ -5,7 +5,6 @@
 RssFilter
 *******************************************************************************/
 
-
 class RssFilter {
 
 
@@ -197,7 +196,7 @@ class RssFilter {
                     }
 
                     // run callback on data if it exists
-                    if($this->CFG_KEYWORDS_CALLBACK[$name]) {
+                    if(isset($this->CFG_KEYWORDS_CALLBACK[$name])) {
                         $value = $this->CFG_KEYWORDS_CALLBACK[$name]($value);
                     }
 
@@ -247,7 +246,7 @@ class RssFilter {
 
             // get user agent value for current ruleset
             $useragent = null;
-            if($ruleset['userAgent'] != null) {
+            if(isset($ruleset['userAgent'])) {
                 $useragent = $ruleset['userAgent'];
             }
 
@@ -476,45 +475,50 @@ class RssFilter {
         foreach($this->CFG_CONFIG_DATA['items'] as &$item) {
 
             // ruleSet shorthand
-            $ruleset = $this->CFG_CONFIG_DATA['config']['ruleSet'][$item['ruleset']];
+            $ruleset = &$this->CFG_CONFIG_DATA['config']['ruleSet'][$item['ruleset']];
 
             // init match status
             $item['match'] = false;
 
             // count occurence of data by ruleset+type
             // and create shorthands
-            $occTitle = ++$itemOccurence[$item['ruleset']] ['title'] [$item['title']];
-            $occLink  = ++$itemOccurence[$item['ruleset']] ['link']  [$item['link']];
-
-            // skip duplicate title when option enabled
-            if($ruleset['titleDuplicateRemove'] && $occTitle > 1) {
-                continue;
+            $occTitle = "ruleset_${item['ruleset']}_title_${item['title']}";
+            if(!in_array($occTitle, $itemOccurence)) {
+                $itemOccurence[$occTitle] = 0;
             }
+            $occTitle = ++$itemOccurence[$occTitle];
 
-            // skip duplicate link when option enabled
-            if($ruleset['linkDuplicateRemove'] && $occLink > 1) {
-                continue;
+            $occLink  = "ruleset_${item['ruleset']}_link_${item['link']}";
+            if(!in_array($occLink, $itemOccurence)) {
+                $itemOccurence[$occLink] = 0;
             }
+            $occLink = ++$itemOccurence[$occLink];
 
-            if(!$ruleset['rules']) {
+            if(
+                // skip duplicate title when option enabled
+                (isset($ruleset['titleDuplicateRemove']) && $occTitle > 1)
+                // skip duplicate link when option enabled
+                || (isset($ruleset['linkDuplicateRemove']) && $occLink > 1)
+                // skip duplicate link when option enabled
+                || !isset($ruleset['rules'])
+            ) {
                 continue;
             }
 
             // check item against rules
             foreach($ruleset['rules'] as $rules) {
 
-                // rule: before
-                if($rules['before'] && $item['pubDate_timestamp'] > $rules['before']) {
-                    continue;
-                }
-
-                // rule: after
-                if($rules['after'] && $item['pubDate_timestamp'] < $rules['after']) {
+                if(
+                    // rule: before
+                    isset($rules['before']) && $item['pubDate_timestamp'] > $rules['before']
+                    // rule: after
+                    || (isset($rules['after']) && $item['pubDate_timestamp'] < $rules['after'])
+                ) {
                     continue;
                 }
 
                 // rule: titleMatchMust
-                if(is_array($rules['titleMatchMust'])) {
+                if(isset($rules['titleMatchMust']) && is_array($rules['titleMatchMust'])) {
                     foreach($rules['titleMatchMust'] as $regex) {
                         if(!preg_match($regex, $item['title'])) {
 
@@ -525,7 +529,7 @@ class RssFilter {
                 }
 
                 // rule: titleMatchNot
-                if(is_array($rules['titleMatchNot'])) {
+                if(isset($rules['titleMatchNot']) && is_array($rules['titleMatchNot'])) {
                     foreach($rules['titleMatchNot'] as $regex) {
                         if(preg_match($regex, $item['title'])) {
 
@@ -536,7 +540,7 @@ class RssFilter {
                 }
 
                 // rule: titleMatch
-                if(is_array($rules['titleMatch'])) {
+                if(isset($rules['titleMatch']) && is_array($rules['titleMatch'])) {
                     $titleMatch = false;
                     foreach($rules['titleMatch'] as $regex) {
                         if(preg_match($regex, $item['title'])) {
@@ -568,17 +572,26 @@ class RssFilter {
     public function statsBuild() {
 
         // shorthand
-        $stat = $this->CFG_CONFIG_DATA['stat'];
+        $stat = &$this->CFG_CONFIG_DATA['stat'];
 
         $stat['sourceCount'] = count($this->CFG_CONFIG_DATA['source']);
         $stat['itemCount']   = count($this->CFG_CONFIG_DATA['items']);
 
-        foreach($this->CFG_CONFIG_DATA['items'] as $item) {
+        foreach($this->CFG_CONFIG_DATA['items'] as &$item) {
 
+            if(!isset($stat['itemCountBySource'][$item['source']])) {
+                $stat['itemCountBySource'][$item['source']] = 0;
+            }
             ++$stat['itemCountBySource'][$item['source']];
 
             if($item['match']) {
+                if(!isset($stat['itemMatch'])) {
+                    $stat['itemMatch'] = 0;
+                }
                 ++$stat['itemMatch'];
+                if(!isset($stat['itemMatchBySource'][$item['source']])) {
+                    $stat['itemMatchBySource'][$item['source']] = 0;
+                }
                 ++$stat['itemMatchBySource'][$item['source']];
             }
         }
@@ -599,13 +612,13 @@ class RssFilter {
         // description, put stats in there
         $desc = "
 matches   items   url
-".sprintf('%7s', (int)$stat['itemMatch'])
-."   ".sprintf('%5s', (int)$stat['itemCount'])
+".sprintf('%7s', isset($stat['itemMatch']) ? (int)$stat['itemMatch'] : 0)
+."   ".sprintf('%5s', isset($stat['itemCount']) ? (int)$stat['itemCount'] : 0)
 ."   ".(int)$stat['sourceCount']." (total)";
 
         foreach($this->CFG_CONFIG_DATA['source'] as $sid=>$url) {
-            $desc .= "\n".sprintf('%7s', (int)$stat['itemMatchBySource'][$sid])
-                ."   ".sprintf('%5s', (int)$stat['itemCountBySource'][$sid])
+            $desc .= "\n".sprintf('%7s', isset($stat['itemMatchBySource'][$sid]) ? (int)$stat['itemMatchBySource'][$sid] : 0)
+                ."   ".sprintf('%5s', isset($stat['itemCountBySource'][$sid]) ? (int)$stat['itemCountBySource'][$sid] : 0)
                 ."   ".$this->hsc($url);
         }
 
