@@ -118,6 +118,26 @@ Configuration keywords
    - personally recommended format: `2014-12-31 23:59:59 +1200`
    - when an item pubDate is older than this, the item is discarded
 
+ - `olderThan`
+   - a string representing a duration using a number followed by an optional quantifier, ex: `7d`
+   - available quantifiers:
+     - `s` for seconds
+     - `m` for minutes
+     - `h` for hours
+     - `d` for days
+   - default quantifier is `s` when omitted
+   - when an item pubDate is more recent than the current time minus this duration, the item is discarded
+
+ - `newerThan`
+   - a string representing a duration using a number followed by an optional quantifier, ex: `7d`
+   - available quantifiers:
+     - `s` for seconds
+     - `m` for minutes
+     - `h` for hours
+     - `d` for days
+   - default quantifier is `s` when omitted
+   - when an item pubDate is older than the current time minus this duration, the item is discarded
+
 
 Notes
 -----

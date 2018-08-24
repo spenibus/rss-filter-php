@@ -13,6 +13,8 @@ class RssFilter {
     ***************************************************************************/
 
 
+    private $CFG_TIME;
+
     private $CFG_HTTPS;
     private $CFG_HOST;
     private $CFG_SELF;
@@ -34,6 +36,8 @@ class RssFilter {
     private $CFG_KEYWORDS_INDEX;
     private $CFG_KEYWORDS_CALLBACK;
 
+    private $CFG_QUANTIFIERS;
+
 
     /***************************************************************************
     methods
@@ -44,6 +48,9 @@ class RssFilter {
     constructor
     ***/
     public function __construct($configFile) {
+
+        // generate time once for consistency
+        $this->CFG_TIME = time();
 
         $this->CFG_HTTPS       = isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] ? true : false;
         $this->CFG_HOST        = $_SERVER['HTTP_HOST'];
@@ -61,6 +68,13 @@ class RssFilter {
 
         $this->CFG_FETCH_TIMEOUT   = 20;
         $this->CFG_FETCH_MAX_REDIR = 10;
+
+        $this->CFG_QUANTIFIERS = array(
+            's' => 1,
+            'm' => 60,
+            'h' => 3600,
+            'd' => 86400,
+        );
 
         /*
         array(name, type, unique)
@@ -88,6 +102,8 @@ class RssFilter {
             array('titleMatchMust', 1, false),
             array('before',         1, true),
             array('after',          1, true),
+            array('olderThan',      1, true),
+            array('newerThan',      1, true),
         );
 
         $this->CFG_KEYWORDS_INDEX = array(
@@ -96,13 +112,37 @@ class RssFilter {
             2 => 'unique',
         );
 
+
+        /***
+        keywords callbacks
+        execute associated callback when keyword is defined in config
+        returned value will then be used in filtering
+        ***/
+
+        // before
         $this->CFG_KEYWORDS_CALLBACK['before'] = function($data) {
             return strtotime($data);
         };
 
-        $this->CFG_KEYWORDS_CALLBACK['after'] = function($data) {
-            return strtotime($data);
+        // after
+        $this->CFG_KEYWORDS_CALLBACK['after'] = $this->CFG_KEYWORDS_CALLBACK['before'];
+
+        // olderThan
+        $this->CFG_KEYWORDS_CALLBACK['olderThan'] = function($data) {
+
+            // get number and quantifier
+            preg_match('/(\d+)\s*([a-z])?/si', $data, $m);
+
+            // quantifier
+            $quantifier = isset($m[2]) && isset($this->CFG_QUANTIFIERS[$m[2]])
+                ? $this->CFG_QUANTIFIERS[$m[2]]
+                : 1;
+
+            return $this->CFG_TIME - ($m[1] * $quantifier);
         };
+
+        // newerThan
+        $this->CFG_KEYWORDS_CALLBACK['newerThan'] = $this->CFG_KEYWORDS_CALLBACK['olderThan'];
     }
 
 
@@ -499,7 +539,7 @@ class RssFilter {
                 (isset($ruleset['titleDuplicateRemove']) && $occTitle > 1)
                 // skip duplicate link when option enabled
                 || (isset($ruleset['linkDuplicateRemove']) && $occLink > 1)
-                // skip duplicate link when option enabled
+                // skip when no rules
                 || !isset($ruleset['rules'])
             ) {
                 continue;
@@ -508,11 +548,16 @@ class RssFilter {
             // check item against rules
             foreach($ruleset['rules'] as $rules) {
 
+                // time based rules
                 if(
                     // rule: before
                     isset($rules['before']) && $item['pubDate_timestamp'] > $rules['before']
                     // rule: after
                     || (isset($rules['after']) && $item['pubDate_timestamp'] < $rules['after'])
+                    // rule: olderThan
+                    || (isset($rules['olderThan']) && $item['pubDate_timestamp'] > $rules['olderThan'])
+                    // rule: newerThan
+                    || (isset($rules['newerThan']) && $item['pubDate_timestamp'] < $rules['newerThan'])
                 ) {
                     continue;
                 }
@@ -522,8 +567,8 @@ class RssFilter {
                     foreach($rules['titleMatchMust'] as $regex) {
                         if(!preg_match($regex, $item['title'])) {
 
-                        // skip ruleset
-                        continue 2;
+                            // skip ruleset
+                            continue 2;
                         }
                     }
                 }
