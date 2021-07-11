@@ -101,10 +101,29 @@ Configuration keywords
    - a regular expression usable by PCRE (preg_*), ex: `/(foo|bar)/siu`
    - when at least one `titleMatchNot` matches the title of an item from one of
      the sources, the item is discarded
+   - this works like the logical operator `AND NOT`
 
  - `titleMatchMust`
    - a regular expression usable by PCRE (preg_*), ex: `/(foo|bar)/siu`
    - when at least one `titleMatchMust` doesn't match the title of an item from
+     one of the sources, the item is discarded
+   - this works like the logical operator `AND`
+
+ - `categoryMatch`
+   - a regular expression usable by PCRE (preg_*), ex: `/(foo|bar)/siu`
+   - when at least one `categoryMatch` matches any category of an item from one of
+     the sources, the item is kept
+   - this works like the logical operator `OR`
+
+ - `categoryMatchNot`
+   - a regular expression usable by PCRE (preg_*), ex: `/(foo|bar)/siu`
+   - when at least one `categoryMatchNot` matches any category of an item from one of
+     the sources, the item is discarded
+   - this works like the logical operator `AND NOT`
+
+ - `categoryMatchMust`
+   - a regular expression usable by PCRE (preg_*), ex: `/(foo|bar)/siu`
+   - when at least one `categoryMatchMust` doesn't match any category of an item from
      one of the sources, the item is discarded
    - this works like the logical operator `AND`
 
