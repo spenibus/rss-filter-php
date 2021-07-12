@@ -1,16 +1,13 @@
 rss-filter
 ==========
 
-
  - http://spenibus.net
  - https://github.com/spenibus/rss-filter-php
  - https://gitlab.com/spenibus/rss-filter-php
  - https://bitbucket.org/spenibus/rss-filter-php
 
-
 This script aggregates and filters rss feeds to output only desired items as a
 single feed.
-
 
 -  Configuration files use the xml extension.
 -  Configuration files must be placed in `./config/`
@@ -22,10 +19,8 @@ single feed.
 -  A configuration file sample is available at `./example.xml`
 -  Configuration keywords are case sensitive, details below.
 
-
 Configuration structure
 -----------------------
-
 
 ````
 <config>
@@ -47,10 +42,8 @@ Configuration structure
 </config>
 ````
 
-
 Configuration keywords
 ----------------------
-
 
  - `config`
    - root element
@@ -157,17 +150,29 @@ Configuration keywords
    - default quantifier is `s` when omitted
    - when an item pubDate is older than the current time minus this duration, the item is discarded
 
-
 Notes
 -----
 
-
  - `rules` blocks only apply to items coming from the `source` elements within the
-same `ruletSet` block
+   same `ruletSet` block
 
  - keywords within a `rules` block only apply to that block, this is important to
-remember when using multiple `rules` block because while one block can exclude
-some items, another block can still include them
+   remember when using multiple `rules` block because while one block can exclude
+   some items, another block can still include them
+
+ - multiple identically named keywords can appear in one `rules` block
+   - multiple `*MatchMust` keywords within one `rules` block are implicitly AND-connected,
+     i.e. **all matches must be true** in order for a feed item to be added to the output 
+   - multiple `*MatchNot` keywords within one `rules` block are implicitly AND-NOT-connected,
+     i.e. **all matches must be false** in order for a feed item to be added to the output
+   - multiple `*Match` keywords within one `rules` block are implicitly OR-connected,
+     i.e. **at least one match must be true** in order for a feed item to be added to the output
+
+ - multiple `ruleSet` elements are implicitly OR-connected,
+   i.e. **at least one `rules` block must be true** in order for a feed item to be added to the output
+
+Examples
+--------
 
 ````
 <rules>
@@ -177,12 +182,10 @@ some items, another block can still include them
     <titleMatchNot>/army/</titleMatchNot>
 </rules>
 ````
-
 
 The example above will return "red army" because the first `rules` block has
 already added the item to the output when the second `rules` block is evaluated.
 
-
 ````
 <rules>
     <titleMatch>/red/</titleMatch>
@@ -190,9 +193,7 @@ already added the item to the output when the second `rules` block is evaluated.
 </rules>
 ````
 
-
 The example above will not return "red army".
-
 
 ````
 <rules>
@@ -204,13 +205,10 @@ The example above will not return "red army".
 </rules>
 ````
 
-
 The example above will also return "red army" because even though the first
 `rules` block has discarded the item, the second one will match it.
 
-
 It is possible to remove unused keywords, as in the example below:
-
 
 ````
 <config>
