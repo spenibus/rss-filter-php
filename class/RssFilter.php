@@ -97,16 +97,19 @@ class RssFilter {
             array('linkDuplicateRemove',  1, true),
             array('rules',                2, false),
             // rules
-            array('titleMatch',        1, false),
-            array('titleMatchNot',     1, false),
-            array('titleMatchMust',    1, false),
-            array('categoryMatch',     1, false),
-            array('categoryMatchNot',  1, false),
-            array('categoryMatchMust', 1, false),
-            array('before',            1, true),
-            array('after',             1, true),
-            array('olderThan',         1, true),
-            array('newerThan',         1, true),
+            array('titleMatch',           1, false),
+            array('titleMatchNot',        1, false),
+            array('titleMatchMust',       1, false),
+            array('descriptionMatch',     1, false),
+            array('descriptionMatchNot',  1, false),
+            array('descriptionMatchMust', 1, false),
+            array('categoryMatch',        1, false),
+            array('categoryMatchNot',     1, false),
+            array('categoryMatchMust',    1, false),
+            array('before',               1, true),
+            array('after',                1, true),
+            array('olderThan',            1, true),
+            array('newerThan',            1, true),
         );
 
         $this->CFG_KEYWORDS_INDEX = array(
@@ -429,7 +432,7 @@ class RssFilter {
     public function feedsParse() {
 
         // tags to extract
-        $necessary = array('title','link','pubDate','category');
+        $necessary = array('title','link','pubDate','category','description');
 
         foreach($this->CFG_CONFIG_DATA['config']['ruleSet'] as $rid=>&$ruleset) {
 
@@ -514,9 +517,9 @@ class RssFilter {
     Rules preference:
       1. Duplicate title/link -> remove
       2. No rules -> remove
-      3. Any forbidden (MatchNot = AND NOT) title|category match found -> remove
-      4. Any required (MatchMust = AND) title|category match *not* found -> remove
-      5. Any matching (Match = OR) title|category match found -> keep
+      3. Any forbidden (MatchNot = AND NOT) title|description|category match found -> remove
+      4. Any required (MatchMust = AND) title|description|category match *not* found -> remove
+      5. Any matching (Match = OR) title|description|category match found -> keep
       6. Otherwise -> keep
     ***/
     public function itemsFilter() {
@@ -591,6 +594,16 @@ class RssFilter {
                     }
                 }
 
+                // rule: descriptionMatchNot
+                if(isset($rules['descriptionMatchNot']) && is_array($rules['descriptionMatchNot'])) {
+                    foreach($rules['descriptionMatchNot'] as $regex) {
+                        if(preg_match($regex, $item['description'])) {
+                            // Forbidden description found -> skip ruleset
+                            continue 2;
+                        }
+                    }
+                }
+
                 // rule: categoryMatchNot
                 if(isset($rules['categoryMatchNot']) && is_array($rules['categoryMatchNot'])) {
                     $matches = false;
@@ -616,6 +629,16 @@ class RssFilter {
                     foreach($rules['titleMatchMust'] as $regex) {
                         if(!preg_match($regex, $item['title'])) {
                             // Required title not found -> skip ruleset
+                            continue 2;
+                        }
+                    }
+                }
+
+                // rule: descriptionMatchMust
+                if(isset($rules['descriptionMatchMust']) && is_array($rules['descriptionMatchMust'])) {
+                    foreach($rules['descriptionMatchMust'] as $regex) {
+                        if(!preg_match($regex, $item['description'])) {
+                            // Required description not found -> skip ruleset
                             continue 2;
                         }
                     }
@@ -652,6 +675,22 @@ class RssFilter {
                 }
                 if(!$titleMatch) {
                     // None of the OR-matching titles found -> skip ruleset
+                    continue;
+                }
+
+                // rule: descriptionMatch
+                $descriptionMatch = true;
+                if(isset($rules['descriptionMatch']) && is_array($rules['descriptionMatch'])) {
+                    $descriptionMatch = false;
+                    foreach($rules['descriptionMatch'] as $regex) {
+                        if(preg_match($regex, $item['description'])) {
+                            $descriptionMatch = true;
+                            break;
+                        }
+                    }
+                }
+                if(!$descriptionMatch) {
+                    // None of the OR-matching descriptions found -> skip ruleset
                     continue;
                 }
 

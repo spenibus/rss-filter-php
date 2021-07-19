@@ -102,6 +102,24 @@ Configuration keywords
      one of the sources, the item is discarded
    - this works like the logical operator `AND`
 
+ - `descriptionMatch`
+   - a regular expression usable by PCRE (preg_*), ex: `/(foo|bar)/siu`
+   - when at least one `descriptionMatch` matches the description of an item from one of
+     the sources, the item is kept
+   - this works like the logical operator `OR`
+
+ - `descriptionMatchNot`
+   - a regular expression usable by PCRE (preg_*), ex: `/(foo|bar)/siu`
+   - when at least one `descriptionMatchNot` matches the description of an item from one of
+     the sources, the item is discarded
+   - this works like the logical operator `AND NOT`
+
+ - `descriptionMatchMust`
+   - a regular expression usable by PCRE (preg_*), ex: `/(foo|bar)/siu`
+   - when at least one `descriptionMatchMust` doesn't match the description of an item from
+     one of the sources, the item is discarded
+   - this works like the logical operator `AND`
+
  - `categoryMatch`
    - a regular expression usable by PCRE (preg_*), ex: `/(foo|bar)/siu`
    - when at least one `categoryMatch` matches any category of an item from one of
