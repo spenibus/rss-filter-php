@@ -97,13 +97,19 @@ class RssFilter {
             array('linkDuplicateRemove',  1, true),
             array('rules',                2, false),
             // rules
-            array('titleMatch',     1, false),
-            array('titleMatchNot',  1, false),
-            array('titleMatchMust', 1, false),
-            array('before',         1, true),
-            array('after',          1, true),
-            array('olderThan',      1, true),
-            array('newerThan',      1, true),
+            array('titleMatch',           1, false),
+            array('titleMatchNot',        1, false),
+            array('titleMatchMust',       1, false),
+            array('descriptionMatch',     1, false),
+            array('descriptionMatchNot',  1, false),
+            array('descriptionMatchMust', 1, false),
+            array('categoryMatch',        1, false),
+            array('categoryMatchNot',     1, false),
+            array('categoryMatchMust',    1, false),
+            array('before',               1, true),
+            array('after',                1, true),
+            array('olderThan',            1, true),
+            array('newerThan',            1, true),
         );
 
         $this->CFG_KEYWORDS_INDEX = array(
@@ -426,7 +432,7 @@ class RssFilter {
     public function feedsParse() {
 
         // tags to extract
-        $necessary = array('title','link','pubDate');
+        $necessary = array('title','link','pubDate','category','description');
 
         foreach($this->CFG_CONFIG_DATA['config']['ruleSet'] as $rid=>&$ruleset) {
 
@@ -470,6 +476,7 @@ class RssFilter {
                     $item = array(
                         'raw' => $dom->saveXML($node),
                     );
+                    $categories = array();
 
                     foreach($node->childNodes as $childNode) {
 
@@ -478,9 +485,15 @@ class RssFilter {
 
                         // collect only necessary nodes
                         if(in_array($name, $necessary)) {
-                            $item[$name] = $value;
+                            if($name == 'category') {
+                                $categories[] = $value;
+                            }
+                            else {
+                                $item[$name] = $value;
+                            }
                         }
                     }
+                    $item['category'] = $categories;
 
                     // pubDate timestamp
                     $item['pubDate_timestamp'] = strtotime($item['pubDate']);
@@ -500,6 +513,14 @@ class RssFilter {
 
     /***
     filters items from the sources feeds
+
+    Rules preference:
+      1. Duplicate title/link -> remove
+      2. No rules -> remove
+      3. Any forbidden (MatchNot = AND NOT) title|description|category match found -> remove
+      4. Any required (MatchMust = AND) title|description|category match *not* found -> remove
+      5. Any matching (Match = OR) title|description|category match found -> keep
+      6. Otherwise -> keep
     ***/
     public function itemsFilter() {
 
@@ -559,32 +580,90 @@ class RssFilter {
                     // rule: newerThan
                     || (isset($rules['newerThan']) && $item['pubDate_timestamp'] < $rules['newerThan'])
                 ) {
+                    // Time filter mismatch -> skip ruleset
                     continue;
-                }
-
-                // rule: titleMatchMust
-                if(isset($rules['titleMatchMust']) && is_array($rules['titleMatchMust'])) {
-                    foreach($rules['titleMatchMust'] as $regex) {
-                        if(!preg_match($regex, $item['title'])) {
-
-                            // skip ruleset
-                            continue 2;
-                        }
-                    }
                 }
 
                 // rule: titleMatchNot
                 if(isset($rules['titleMatchNot']) && is_array($rules['titleMatchNot'])) {
                     foreach($rules['titleMatchNot'] as $regex) {
                         if(preg_match($regex, $item['title'])) {
+                            // Forbidden title found -> skip ruleset
+                            continue 2;
+                        }
+                    }
+                }
 
-                            // skip ruleset
+                // rule: descriptionMatchNot
+                if(isset($rules['descriptionMatchNot']) && is_array($rules['descriptionMatchNot'])) {
+                    foreach($rules['descriptionMatchNot'] as $regex) {
+                        if(preg_match($regex, $item['description'])) {
+                            // Forbidden description found -> skip ruleset
+                            continue 2;
+                        }
+                    }
+                }
+
+                // rule: categoryMatchNot
+                if(isset($rules['categoryMatchNot']) && is_array($rules['categoryMatchNot'])) {
+                    $matches = false;
+                    foreach($rules['categoryMatchNot'] as $regex) {
+                        if(isset($item['category']) && is_array($item['category'])) {
+                            foreach($item['category'] as $catItem) {
+                                if(preg_match($regex, $catItem)) {
+                                    $matches = true;
+                                    break;
+                                }
+                            }
+                        }
+                        if($matches) {
+                            // Forbidden category found -> skip ruleset
+                            continue 2;
+                        }
+
+                    }
+                }
+
+                // rule: titleMatchMust
+                if(isset($rules['titleMatchMust']) && is_array($rules['titleMatchMust'])) {
+                    foreach($rules['titleMatchMust'] as $regex) {
+                        if(!preg_match($regex, $item['title'])) {
+                            // Required title not found -> skip ruleset
+                            continue 2;
+                        }
+                    }
+                }
+
+                // rule: descriptionMatchMust
+                if(isset($rules['descriptionMatchMust']) && is_array($rules['descriptionMatchMust'])) {
+                    foreach($rules['descriptionMatchMust'] as $regex) {
+                        if(!preg_match($regex, $item['description'])) {
+                            // Required description not found -> skip ruleset
+                            continue 2;
+                        }
+                    }
+                }
+
+                // rule: categoryMatchMust
+                if(isset($rules['categoryMatchMust']) && is_array($rules['categoryMatchMust'])) {
+                    $matches = false;
+                    foreach($rules['categoryMatchMust'] as $regex) {
+                        if(isset($item['category']) && is_array($item['category'])) {
+                            foreach($item['category'] as $catItem) {
+                                if(preg_match($regex, $catItem)) {
+                                    $matches = true;
+                                }
+                            }
+                        }
+                        if(!$matches) {
+                            // Required category not found -> skip ruleset
                             continue 2;
                         }
                     }
                 }
 
                 // rule: titleMatch
+                $titleMatch = true;
                 if(isset($rules['titleMatch']) && is_array($rules['titleMatch'])) {
                     $titleMatch = false;
                     foreach($rules['titleMatch'] as $regex) {
@@ -593,9 +672,46 @@ class RssFilter {
                             break;
                         }
                     }
-                    if(!$titleMatch) {
-                        continue;
+                }
+                if(!$titleMatch) {
+                    // None of the OR-matching titles found -> skip ruleset
+                    continue;
+                }
+
+                // rule: descriptionMatch
+                $descriptionMatch = true;
+                if(isset($rules['descriptionMatch']) && is_array($rules['descriptionMatch'])) {
+                    $descriptionMatch = false;
+                    foreach($rules['descriptionMatch'] as $regex) {
+                        if(preg_match($regex, $item['description'])) {
+                            $descriptionMatch = true;
+                            break;
+                        }
                     }
+                }
+                if(!$descriptionMatch) {
+                    // None of the OR-matching descriptions found -> skip ruleset
+                    continue;
+                }
+
+                // rule: categoryMatch
+                $categoryMatch = true;
+                if(isset($rules['categoryMatch']) && is_array($rules['categoryMatch'])) {
+                    $categoryMatch = false;
+                    foreach($rules['categoryMatch'] as $regex) {
+                        if(isset($item['category']) && is_array($item['category'])) {
+                            foreach($item['category'] as $catItem) {
+                                if(preg_match($regex, $catItem)) {
+                                    $categoryMatch = true;
+                                    break 2;
+                                }
+                            }
+                        }
+                    }
+                }
+                if(!$categoryMatch) {
+                    // None of the OR-matching categories found -> skip ruleset
+                    continue;
                 }
 
                 // if we reach this point, the item is a match
