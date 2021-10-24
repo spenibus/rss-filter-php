@@ -471,34 +471,38 @@ class RssFilter {
                 }
 
                 foreach($nodes as $node) {
-
                     // init
-                    $item = array(
-                        'raw' => $dom->saveXML($node),
-                    );
+                    $item = array();
                     $categories = array();
 
                     foreach($node->childNodes as $childNode) {
-
                         $name  = $childNode->nodeName;
                         $value = $childNode->nodeValue;
+
+                        // ensure only string values for some fields
+                        if($name == 'title' || $name == 'link') {
+                            $childNode->nodeValue = $childNode->textContent;
+                        }
 
                         // collect only necessary nodes
                         if(in_array($name, $necessary)) {
                             if($name == 'category') {
                                 $categories[] = $value;
-                            }
-                            else {
+                            } else {
                                 $item[$name] = $value;
                             }
                         }
                     }
+                    
                     $item['category'] = $categories;
 
                     // pubDate timestamp
                     $item['pubDate_timestamp'] = strtotime($item['pubDate']);
                     $item['ruleset'] = $rid;
                     $item['source']  = $sid;
+
+                    // raw content
+                    $item['raw'] = $dom->saveXML($node);
 
                     // update structure, store items by source
                     $this->CFG_CONFIG_DATA['items'][] = $item;
